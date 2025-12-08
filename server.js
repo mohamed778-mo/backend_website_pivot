@@ -29,6 +29,7 @@ mongoose.connect("mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@clust
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Error:', err));
 
+
 const authMiddleware = (req, res, next) => {
     const token = req.header('Authorization');
     if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
@@ -156,4 +157,5 @@ app.get('/api/website/:domainName', async (req, res) => {
 const PORT =  5000;
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
