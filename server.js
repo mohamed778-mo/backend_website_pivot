@@ -8,12 +8,37 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+
 const User = require('./models/User');
 const Website = require('./models/Website');
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5000', 
+    "https://backend-website-pivot.vercel.app"
+
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // For development, allow all origins
+      // In production, uncomment the line below and remove the line above:
+      // callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -156,3 +181,4 @@ app.get('/api/website/:domainName', async (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
