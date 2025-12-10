@@ -18,7 +18,7 @@ const allowedOrigins = [
   'http://localhost:5000', 
   "https://backend-website-pivot.vercel.app",
   "https://landing-padge-pivot.vercel.app",
-  "http://localhost:3001"
+  "http://localhost:3000"
 ];
 
 app.use(cors({
@@ -189,4 +189,5 @@ app.get('/api/website/:domainName', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
