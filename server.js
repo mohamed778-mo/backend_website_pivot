@@ -6,32 +6,26 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-
+// const fs = require('fs'); // تم إيقافه لأنه يسبب مشاكل في Vercel
 
 const User = require('./models/User');
 const Website = require('./models/Website');
 
 const app = express();
 
+// 1. إعدادات CORS
 const allowedOrigins = [
   'http://localhost:5000', 
-    "https://backend-website-pivot.vercel.app",
+  "https://backend-website-pivot.vercel.app",
   "https://landing-padge-pivot.vercel.app"
-
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(null, true); // For development, allow all origins
-      // In production, uncomment the line below and remove the line above:
-      // callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -41,17 +35,18 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads');
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
+// 2. إعدادات رفع الملفات (تم التعديل ليعمل على Vercel)
+// Vercel لا يدعم diskStorage، نستخدم memoryStorage مؤقتاً لتجنب الانهيار
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-mongoose.connect("mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0")
+// 3. الاتصال بقاعدة البيانات
+// يفضل وضع الرابط في Environment Variables في إعدادات Vercel
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0";
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
+
+mongoose.connect(MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Error:', err));
 
@@ -59,7 +54,7 @@ const authMiddleware = (req, res, next) => {
     const token = req.header('Authorization');
     if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
     try {
-        const decoded = jwt.verify(token.replace('Bearer ', ''), 'supersecretkey123');
+        const decoded = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
         req.user = decoded;
         next();
     } catch (e) { res.status(400).json({ msg: 'Token is not valid' }); }
@@ -71,18 +66,27 @@ const authMiddleware = (req, res, next) => {
 app.post('/api/register', async (req, res) => {
     try {
         const { full_name, phone, email, password } = req.body;
+        
+        // التحقق من وجود المستخدم
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: 'المستخدم مسجل بالفعل' });
 
+        // تشفير كلمة المرور
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // إنشاء المستخدم
         user = new User({ full_name, phone, email, password: hashedPassword });
         await user.save();
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        // إنشاء التوكن
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
+        
         res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.full_name } });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error("Register Error:", err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 // 2. Login
@@ -95,39 +99,46 @@ app.post('/api/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ msg: 'البيانات غير صحيحة' });
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
         res.json({ token, user: { id: user._id, email: user.email } });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // 3. Create Website
+// ملاحظة هامة: الصور هنا لن يتم حفظها برابط دائم لأننا نستخدم memoryStorage
+// لحل هذا يجب ربط Cloudinary لاحقاً.
 app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFiles' }, { name: 'heroImageFiles' }]), async (req, res) => {
     try {
-        const logoPath = req.files['logoFiles'] ? req.files['logoFiles'][0].path.replace(/\\/g, '/') : null;
-        const heroPath = req.files['heroImageFiles'] ? req.files['heroImageFiles'][0].path.replace(/\\/g, '/') : null;
+        // بما أننا نستخدم memoryStorage، لا يوجد path، الملفات موجودة في الـ Buffer
+        // سنضع قيمة فارغة مؤقتاً حتى لا يحدث خطأ
+        const logoPath = req.files['logoFiles'] ? "temp_logo_url_placeholder" : null;
+        const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : null;
 
-        // تحويل مصفوفة الألوان من String لمصفوفة (Multer limitation)
-        // بنفترض إن الفرونت بيبعت الألوان بالترتيب
-        const colorPalette = req.body.colorPalette || []; // ["#000", "#fff", ...]
+        // معالجة المصفوفات القادمة كنصوص
+        let colorPalette = req.body.colorPalette;
+        if (typeof colorPalette === 'string') {
+            try { colorPalette = JSON.parse(colorPalette); } catch(e) { colorPalette = []; }
+        }
 
-        // تحويل السكاشن المختارة لهيكل البيانات الجديد
-        // req.body.selectedSections جاي مصفوفة زي ["hero", "footer"]
-        const selectedSectionsRaw = req.body.selectedSections || [];
+        let selectedSectionsRaw = req.body.selectedSections;
+        if (typeof selectedSectionsRaw === 'string') {
+             try { selectedSectionsRaw = JSON.parse(selectedSectionsRaw); } catch(e) { selectedSectionsRaw = []; }
+        }
+
         const sections = Array.isArray(selectedSectionsRaw) 
             ? selectedSectionsRaw.map((id, index) => ({ id, enabled: true, order: index })) 
-            : []; // معالجة لو جاية سترينج واحد أو فاضية
+            : [];
 
         const websiteData = {
             userId: req.user.id,
             siteName: req.body.siteName,
             domainName: req.body.domainName,
-            email: req.body.email, // بريد التواصل
-            // تخزين الألوان كـ Object لسهولة الاستخدام
+            email: req.body.email,
             colors: {
-                primary: colorPalette[0] || '#1e2a60',
-                secondary: colorPalette[1] || '#3e4ea3',
-                text: colorPalette[2] || '#000000',
-                background: colorPalette[3] || '#ffffff',
+                primary: colorPalette && colorPalette[0] ? colorPalette[0] : '#1e2a60',
+                secondary: colorPalette && colorPalette[1] ? colorPalette[1] : '#3e4ea3',
+                text: colorPalette && colorPalette[2] ? colorPalette[2] : '#000000',
+                background: colorPalette && colorPalette[3] ? colorPalette[3] : '#ffffff',
             },
             hero: {
                 title: req.body.heroTitle,
@@ -139,15 +150,14 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
             sections: sections
         };
 
-        // لو اليوزر رفع صور جديدة نحدثها، لو لا نسيب القديم (logic بسيط هنا، ممكن نحسنه)
+        // المنطق لتحديث البيانات
         if (!logoPath) delete websiteData.logo;
         if (!heroPath) delete websiteData.hero.backgroundImage;
 
-        // البحث والتحديث أو الإنشاء
         const website = await Website.findOneAndUpdate(
             { userId: req.user.id },
-            websiteData,
-            { new: true, upsert: true } // upsert: create if not exists
+            { $set: websiteData },
+            { new: true, upsert: true } 
         );
 
         res.json({ msg: 'Website saved successfully', website });
@@ -158,10 +168,7 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
     }
 });
 
-// 5. Public Website View (للزوار ولعرض الموقع)
-
-
-// 4. Get My Website (Check functionality)
+// 4. Get My Website
 app.get('/api/my_website', authMiddleware, async (req, res) => {
     try {
         const website = await Website.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
@@ -180,7 +187,4 @@ app.get('/api/website/:domainName', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-
