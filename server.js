@@ -44,7 +44,8 @@ const upload = multer({ storage });
 
 // 3. الاتصال بقاعدة البيانات
 // يفضل وضع الرابط في Environment Variables في إعدادات Vercel
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0";
+const URL="mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0";
+const MONGODB_URI = URL;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
 mongoose.connect(MONGODB_URI)
@@ -189,5 +190,6 @@ app.get('/api/website/:domainName', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
 
