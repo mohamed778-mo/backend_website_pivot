@@ -6,27 +6,29 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, trim: true, lowercase: true },
   password: { type: String, required: true },
   
-  // نوع المستخدم (أدمن لصاحب الموقع / عميل للمشتري)
+  // هل هو أدمن منصة أم عميل متجر؟
   role: { 
     type: String, 
     enum: ['admin', 'customer'], 
     default: 'admin' 
   },
-
-  // ✅ (للعملاء فقط) الدومين التابعين له
+  
+  // (للعملاء) اسم المتجر التابعين له
+  // (للأدمن) سيكون فارغاً (null)
   domain: { type: String, required: false }, 
 
-  // ✅ (للأدمن فقط) رابط الموقع الخاص به
-  // هذا الحقل سيحمل الـ ID الخاص بالويب سايت اللي الأدمن عمله
+  // (للأدمن) رابط الموقع الذي يملكه
   website: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Website',
-    required: false // غير إلزامي لأن العميل ملوش موقع، والأدمن الجديد لسه معملش موقع
+    required: false
   }
 
 }, { timestamps: true });
 
-// التأكد من عدم تكرار الإيميل داخل نفس الدومين (للعملاء) أو في النظام ككل (للأدمن)
+// ✅ السطر السحري:
+// يمنع تكرار الإيميل "داخل نفس الدومين".
+// وبما أن الأدمن الـ domain بتاعه null، فسيمنع تكرار إيميل الأدمن في النظام ككل.
 UserSchema.index({ email: 1, domain: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', UserSchema);
