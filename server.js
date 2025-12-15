@@ -158,7 +158,8 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
 
         // ✅ 2. تحديث اليوزر (الأدمن) وربطه بالموقع
         await User.findByIdAndUpdate(req.user.id, { 
-            website: website._id 
+            website: website._id ,
+          domain:website.domainName
         });
 
         res.json({ msg: 'Website saved successfully', website });
@@ -241,14 +242,14 @@ app.post('/api/store/auth/register', async (req, res) => {
 // Unified Login (Admin & Customer)
 app.post('/api/login', async (req, res) => {
     try {
-        const { email, password, domain } = req.body;
+        const { email, password, domainName } = req.body;
 
         let user;
 
         // الحالة 1: لو في دومين مبعوت (يعني المستخدم بيسجل من صفحة متجر محدد)
         if (domain) {
             // الأول ندور هل هو عميل في المتجر ده؟
-            user = await User.findOne({ email, role: 'customer', domain });
+            user = await User.findOne({ email, role: 'customer', domain:domainName });
             
             // لو مش عميل، يمكن يكون الأدمن صاحب المتجر بيحاول يدخل من صفحة المتجر
             if (!user) {
@@ -289,6 +290,7 @@ app.post('/api/login', async (req, res) => {
 });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
 
 
