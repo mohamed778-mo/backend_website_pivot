@@ -5,15 +5,13 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const path = require('path');
 
-// Models
 const User = require('./models/User');
 const Website = require('./models/Website');
+const Theme = require('./models/Theme');
 
 const app = express();
 
-// 1. CORS Configuration
 const allowedOrigins = [
   'http://localhost:5000', 
   "https://backend-website-pivot.vercel.app",
@@ -26,30 +24,26 @@ app.use(cors({
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, true);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200
+  credentials: true
 }));
 
 app.use(express.json());
 
-// 2. File Upload Config (Memory Storage for Vercel)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// 3. Database Connection
-const MONGODB_URI = "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0"; // يفضل نقله لـ .env
+const MONGODB_URI = "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0"; 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
 mongoose.connect(MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Error:', err));
 
-// Middleware
 const authMiddleware = (req, res, next) => {
     const token = req.header('Authorization');
     if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
@@ -60,106 +54,200 @@ const authMiddleware = (req, res, next) => {
     } catch (e) { res.status(400).json({ msg: 'Token is not valid' }); }
 };
 
-// --- ROUTES ---
-
-// ----------------------------------------------------
-// 1. Admin Auth (تسجيل أصحاب المواقع)
-// ----------------------------------------------------
-
-// Admin Register
-app.post('/api/register', async (req, res) => {
+app.post('/api/admin/seed_themes', async (req, res) => {
     try {
-        const { full_name, phone, email, password } = req.body;
-        
-        let user = await User.findOne({ email, role: 'admin' }); // التأكد من عدم وجود أدمن بنفس الإيميل
-        if (user) return res.status(400).json({ msg: 'المستخدم مسجل بالفعل' });
+        const themes = [
+            {
+                theme_id: 'tpl_furniture_01',
+                name: 'أثاث عصري',
+                previewImage: '/id1.png',
+                hero: {
+                    title: 'أثاث راقي… يصنع الفرق في كل زاوية.',
+                    subtitle: "تصميمات حديثة، ألوان هادئة، وجودة تعيش سنين—حوّل كل غرفة لفرصة جديدة للراحة والجمال.",
+                    buttonText: "تسوق الأن",
+                    backgroundImage: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1600&q=80"
+                },
+                colors: {
+                    primary: "#000000",
+                    secondary: "#535929",
+                    text: "#535929",
+                    background: "white"
+                },
+                defaultSections: ['hero', 'products', 'about', 'footer']
+            },
+            {
+                theme_id: 'tpl_tech_03',
+                name: 'متجر للاغذية',
+                previewImage: '/id3.png',
+                hero: {
+                    title: 'طلباتك كلها هتوصل لباب بيتك … أسرع وأوفر',
+                    subtitle: "أكتر من 5000 منتج متوفرين جاهزين للطلب اختار اللي تحتاجه وهيوصل لحد باب بيتك بسرعة وجودة مضمونة.",
+                    buttonText: "تسوق الأن",
+                    backgroundImage: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80"
+                },
+                colors: {
+                    primary: "#2e0d76",
+                    secondary: "#001ec0",
+                    text: "#000000",
+                    background: "white"
+                },
+                defaultSections: ['hero', 'categories', 'offers', 'footer']
+            },
+            {
+                theme_id: 'tpl_fashion_02',
+                name: 'أزياء وموضة',
+                previewImage: '/id2.png',
+                hero: {
+                    title: 'موضة بتكمّل شخصيتك.',
+                    subtitle: "مصممة بعناية لتناسب كل تفاصيل يومك إطلالات مرنة تلائمك في جميع المناسبات.",
+                    buttonText: "تسوق الأن",
+                    backgroundImage: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80"
+                },
+                colors: {
+                    primary: "#6dcaff",
+                    secondary: "#000000",
+                    text: "#000000",
+                    background: "white"
+                },
+                defaultSections: ['hero', 'new-arrivals', 'trending', 'footer']
+            },
+            {
+                theme_id: 'tpl_agency_04',
+                name: 'معرض سيارات',
+                previewImage: '/id4.png',
+                hero: {
+                    title: 'مستقبل السيارات… بين يديك.',
+                    subtitle: "استكشف أحدث السيارات الكهربائية والتقنيات الذكية داخل معرض مصمم بعناية ليعرض لك الجيل الجديد من القيادة.",
+                    buttonText: "تسوق الأن",
+                    backgroundImage: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1600&q=80"
+                },
+                colors: {
+                    primary: "#000000",
+                    secondary: "#480181",
+                    text: "#000000",
+                    background: "white"
+                },
+                defaultSections: ['hero', 'featured-cars', 'services', 'footer']
+            },
+            {
+                theme_id: 'tpl_agency_05',
+                name: 'متجر الكترونات',
+                previewImage: '/id5.png',
+                hero: {
+                    title: 'تكنولوجيا المستقبل… تحت إيدك دلوقتى.',
+                    subtitle: "اختار من أحدث الأجهزة اللي بتتعلم منك مع الوقت، وتطوّر أدائها حسب استخدامك، وتقدم لك تجربة أسرع وأقوى من أي جهاز تقليدي.",
+                    buttonText: "تسوق الأن",
+                    backgroundImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80"
+                },
+                colors: {
+                    primary: "#1e2a60",
+                    secondary: "#3e4ea3",
+                    text: "#000000",
+                    background: "white"
+                },
+                defaultSections: ['hero', 'products', 'specs', 'footer']
+            }
+        ];
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        user = new User({ 
-            full_name, 
-            phone, 
-            email, 
-            password: hashedPassword,
-            role: 'admin' // صريحاً دور الأدمن
-        });
-        await user.save();
-
-        const token = jwt.sign({ id: user._id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
-        
-        res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.full_name, role: 'admin' } });
-    } catch (err) { 
-        console.error("Register Error:", err);
-        res.status(500).json({ error: err.message }); 
+        await Theme.deleteMany({}); 
+        await Theme.insertMany(themes);
+        res.json({ msg: 'Themes seeded successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Admin Login
+app.get('/api/themes', async (req, res) => {
+    try {
+        const themes = await Theme.find({});
+        res.json(themes);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-
-// ----------------------------------------------------
-// 2. Website Management (إدارة الموقع)
-// ----------------------------------------------------
-
-// Create/Update Website
 app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFiles' }, { name: 'heroImageFiles' }]), async (req, res) => {
     try {
-        // التحقق من أن المستخدم أدمن
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ msg: 'غير مصرح لك بإنشاء موقع' });
+        if (req.user.role !== 'admin') return res.status(403).json({ msg: 'Unauthorized' });
+
+        const { 
+            siteName, domainName, email, templateId, 
+            heroTitle, heroSubtitle, heroButtonText,
+            colorPalette: userColors,
+            selectedSections: userSections 
+        } = req.body;
+
+        const theme = await Theme.findOne({ theme_id: templateId });
+        if (!theme) return res.status(404).json({ msg: 'Theme not found' });
+
+        let finalColors = theme.colors;
+        if (userColors) {
+             let parsedColors = userColors;
+             if (typeof userColors === 'string') {
+                try { parsedColors = JSON.parse(userColors); } catch(e) {}
+             }
+             if (Array.isArray(parsedColors) && parsedColors.length > 0) {
+                 finalColors = {
+                    primary: parsedColors[0],
+                    secondary: parsedColors[1],
+                    text: parsedColors[2] || '#000',
+                    background: parsedColors[3] || '#fff'
+                 };
+             }
+        }
+
+        let finalSections = [];
+        let parsedUserSections = userSections;
+        if(typeof userSections === 'string') {
+             try { parsedUserSections = JSON.parse(userSections); } catch(e) {}
+        }
+
+        if (Array.isArray(parsedUserSections) && parsedUserSections.length > 0) {
+            finalSections = parsedUserSections.map((sectionId, index) => ({
+                id: sectionId,
+                enabled: true,
+                order: index
+            }));
+        } else {
+            finalSections = theme.defaultSections.map((sectionId, index) => ({
+                id: sectionId,
+                enabled: true,
+                order: index
+            }));
         }
 
         const logoPath = req.files['logoFiles'] ? "temp_logo_url_placeholder" : null;
-        const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : null;
-
-        let colorPalette = req.body.colorPalette;
-        if (typeof colorPalette === 'string') {
-            try { colorPalette = JSON.parse(colorPalette); } catch(e) { colorPalette = []; }
-        }
-
-        let selectedSectionsRaw = req.body.selectedSections;
-        if (typeof selectedSectionsRaw === 'string') {
-             try { selectedSectionsRaw = JSON.parse(selectedSectionsRaw); } catch(e) { selectedSectionsRaw = []; }
-        }
-
-        const sections = Array.isArray(selectedSectionsRaw) 
-            ? selectedSectionsRaw.map((id, index) => ({ id, enabled: true, order: index })) 
-            : [];
+        const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : theme.hero.backgroundImage;
 
         const websiteData = {
             userId: req.user.id,
-            siteName: req.body.siteName,
-            domainName: req.body.domainName,
-            email: req.body.email,
-            colors: {
-                primary: colorPalette && colorPalette[0] ? colorPalette[0] : '#1e2a60',
-                secondary: colorPalette && colorPalette[1] ? colorPalette[1] : '#3e4ea3',
-                text: colorPalette && colorPalette[2] ? colorPalette[2] : '#000000',
-                background: colorPalette && colorPalette[3] ? colorPalette[3] : '#ffffff',
-            },
+            theme_id: templateId,
+            siteName: siteName || "موقعي الجديد",
+            domainName: domainName,
+            email: email,
+            
+            colors: finalColors,
+            logo: logoPath,
+
             hero: {
-                title: req.body.heroTitle,
-                subtitle: req.body.heroSubtitle,
-                buttonText: req.body.heroButtonText,
+                title: heroTitle || theme.hero.title,
+                subtitle: heroSubtitle || theme.hero.subtitle,
+                buttonText: heroButtonText || theme.hero.buttonText,
+                backgroundImage: heroPath
             },
-            sections: sections
+            
+            sections: finalSections
         };
 
-        if (logoPath) websiteData.logo = logoPath;
-        if (heroPath) websiteData.hero.backgroundImage = heroPath;
-
-        // 1. إنشاء أو تحديث الموقع
         const website = await Website.findOneAndUpdate(
             { userId: req.user.id },
             { $set: websiteData },
             { new: true, upsert: true } 
         );
 
-        // ✅ 2. تحديث اليوزر (الأدمن) وربطه بالموقع
         await User.findByIdAndUpdate(req.user.id, { 
-            website: website._id ,
-          domain:website.domainName
+            website: website._id, 
+            domain: website.domainName 
         });
 
         res.json({ msg: 'Website saved successfully', website });
@@ -170,16 +258,32 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
     }
 });
 
-// Get My Website (لصاحب الموقع)
-app.get('/api/my_website', authMiddleware, async (req, res) => {
+app.post('/api/register', async (req, res) => {
     try {
-        const website = await Website.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
-        if (!website) return res.status(404).json({ msg: 'No website found' });
-        res.json(website);
+        const { full_name, phone, email, password } = req.body;
+        
+        let user = await User.findOne({ email, role: 'admin' });
+        if (user) return res.status(400).json({ msg: 'المستخدم مسجل بالفعل' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = new User({ full_name, phone, email, password: hashedPassword, role: 'admin' });
+        await user.save();
+
+        const token = jwt.sign({ id: user._id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
+        
+        res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.full_name, role: 'admin' } });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Public Website View (للزوار)
+app.get('/api/my_website', authMiddleware, async (req, res) => {
+    try {
+        const website = await Website.findOne({ userId: req.user.id });
+        res.json(website || { msg: 'No website found' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/website/:domainName', async (req, res) => {
     try {
         const website = await Website.findOne({ domainName: req.params.domainName });
@@ -188,141 +292,50 @@ app.get('/api/website/:domainName', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ----------------------------------------------------
-// 3. Store Customer Auth (تسجيل عملاء المتاجر)
-// ----------------------------------------------------
-
-// Store Register
 app.post('/api/store/auth/register', async (req, res) => {
     try {
         const { full_name, email, password, phone, domain } = req.body;
-
-        if (!domain) return res.status(400).json({ msg: 'Domain is required' });
-
-        // التأكد من وجود المتجر
         const website = await Website.findOne({ domainName: domain });
-        if (!website) return res.status(404).json({ msg: 'المتجر غير موجود' });
+        if (!website) return res.status(404).json({ msg: 'Store not found' });
 
-        // 1. هل هذا الإيميل مسجل *كعميل* في *نفس هذا المتجر*؟ (ممنوع التكرار هنا)
-        let existingCustomer = await User.findOne({ email, role: 'customer', domain });
-        if (existingCustomer) {
-            return res.status(400).json({ msg: 'هذا البريد مسجل بالفعل كعميل في هذا المتجر' });
-        }
+        let user = await User.findOne({ email, role: 'customer', domain });
+        if (user) return res.status(400).json({ msg: 'User already exists' });
 
-        // 2. هل هذا الإيميل هو "صاحب المتجر" نفسه؟ (اختياري: نمنعه أو نسمح له)
-        // الأفضل نسمح له عادي عشان يشتري من نفسه للتجربة (Test Order)
-        
-        // التشفير
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // إنشاء حساب عميل جديد (حتى لو الإيميل موجود كأدمن لموقع تاني)
-        const newUser = new User({
-            full_name,
-            email,
-            phone,
-            password: hashedPassword,
-            role: 'customer',
-            domain: domain // ربطه بالمتجر الحالي
-        });
+        user = new User({ full_name, email, phone, password: hashedPassword, role: 'customer', domain });
+        await user.save();
 
-        await newUser.save();
-
-        const token = jwt.sign(
-            { id: newUser._id, role: 'customer', domain }, 
-            JWT_SECRET, 
-            { expiresIn: '7d' }
-        );
-
-        res.status(201).json({ 
-            token, 
-            user: { id: newUser._id, name: newUser.full_name, email: newUser.email, role: 'customer' } 
-        });
-
-    } catch (err) {
-        console.error("Store Register Error:", err);
-        res.status(500).json({ error: err.message });
-    }
+        const token = jwt.sign({ id: user._id, role: 'customer', domain }, JWT_SECRET, { expiresIn: '7d' });
+        res.status(201).json({ token, user: { id: user._id, name: user.full_name, email: user.email, role: 'customer' } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Store Login
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password, domainName } = req.body;
-
         let user;
 
-        // السيناريو 1: الدخول من صفحة متجر محدد (مثلاً: /Website/MyStore/Login)
         if (domainName) {
-            // أ. هل أنت عميل مسجل في هذا المتجر؟ (الأولوية للعميل هنا)
             user = await User.findOne({ email, role: 'customer', domain: domainName });
-
-            // ب. لو مش عميل، هل أنت "صاحب هذا المتجر"؟ (عشان الأدمن يقدر يدخل متجره)
             if (!user) {
                 const website = await Website.findOne({ domainName });
-                if (website) {
-                    // ابحث عن أدمن يملك هذا الموقع تحديداً
-                    user = await User.findOne({ email, role: 'admin', website: website._id });
-                }
+                if (website) user = await User.findOne({ email, role: 'admin', website: website._id });
             }
-            
-            // ملحوظة: لو هو أدمن لموقع "تاني"، الكود ده مش هيجيبه، وده المطلوب!
-            // عشان لازم يسجل كعميل جديد في المتجر ده حتى لو بنفس الإيميل.
-        } 
-        
-        // السيناريو 2: الدخول من الصفحة الرئيسية للمنصة (/Website/Login)
-        else {
-            // هنا بنبحث عن أي أدمن (صاحب موقع)
+        } else {
             user = await User.findOne({ email, role: 'admin' });
         }
 
-        if (!user) {
-            // رسالة توضيحية حسب الحالة
-            const msg = domainName 
-                ? 'البريد غير مسجل في هذا المتجر (إذا كنت تملك حساباً في متجر آخر، يرجى إنشاء حساب جديد هنا)' 
-                : 'البيانات غير صحيحة';
-            return res.status(400).json({ msg });
-        }
+        if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // التحقق من الباسورد
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ msg: 'كلمة المرور غير صحيحة' });
+        if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // إنشاء التوكن
-        const token = jwt.sign(
-            { id: user._id, role: user.role, domain: user.domain }, 
-            JWT_SECRET, 
-            { expiresIn: '1d' }
-        );
-
-        res.json({ 
-            token, 
-            user: { 
-                id: user._id, 
-                email: user.email, 
-                name: user.full_name, 
-                role: user.role,
-                domain: user.domain 
-            } 
-        });
-
-    } catch (err) { 
-        console.error("Login Error:", err);
-        res.status(500).json({ error: err.message }); 
-    }
+        const token = jwt.sign({ id: user._id, role: user.role, domain: user.domain }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { id: user._id, email: user.email, name: user.full_name, role: user.role, domain: user.domain } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-
-
-
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-
-
-
-
-
-
