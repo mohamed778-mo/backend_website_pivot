@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const ThemeSchema = new mongoose.Schema({
-  theme_id:{
-    type: String,
-  },
-
+  theme_id: { type: String, required: true, unique: true }, 
+  name: { type: String, required: true },
+  previewImage: { type: String, required: true }, 
+  
   colors: {
     primary: String,
     secondary: String,
@@ -19,8 +19,8 @@ const ThemeSchema = new mongoose.Schema({
     backgroundImage: String
   },
 
- 
-}, { timestamps: true });
+  defaultSections: [{ type: String }] 
 
+}, { timestamps: true });
 
 module.exports = mongoose.model('Theme', ThemeSchema);
