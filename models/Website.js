@@ -6,6 +6,9 @@ const WebsiteSchema = new mongoose.Schema({
     ref: 'User', 
     required: true 
   },
+  theme_id:{
+    type: String,
+  },
   // البيانات الأساسية
   siteName: { type: String, required: true },
   domainName: { type: String, unique: true, required: true }, // المعرف الفريد للرابط
@@ -49,5 +52,6 @@ const WebsiteSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+
 
 module.exports = mongoose.model('Website', WebsiteSchema);
