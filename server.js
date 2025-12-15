@@ -253,7 +253,7 @@ app.post('/api/login', async (req, res) => {
             
             // لو مش عميل، يمكن يكون الأدمن صاحب المتجر بيحاول يدخل من صفحة المتجر
             if (!user) {
-                const website = await Website.findOne({ domainName: domain });
+                const website = await Website.findOne({ domainName: domainName });
                 if (website) {
                     user = await User.findOne({ email, _id: website.userId, role: 'admin' });
                 }
@@ -290,6 +290,7 @@ app.post('/api/login', async (req, res) => {
 });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
 
 
