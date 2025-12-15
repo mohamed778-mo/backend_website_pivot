@@ -240,58 +240,91 @@ app.post('/api/store/auth/register', async (req, res) => {
 // Store Login
 // Unified Login (Admin & Customer)
 app.post('/api/login', async (req, res) => {
+
     try {
-        const { email, password, domain } = req.body; // نستقبل الدومين لو موجود
 
-        let user;
+        const { email, password } = req.body;
 
-        // الحالة 1: لو في دومين مبعوت (يعني المستخدم بيسجل من صفحة متجر محدد)
-        if (domain) {
-            // الأول ندور هل هو عميل في المتجر ده؟
-            user = await User.findOne({ email, role: 'customer', domain });
-            
-            // لو مش عميل، يمكن يكون الأدمن صاحب المتجر بيحاول يدخل من صفحة المتجر
-            if (!user) {
-                // هات المتجر عشان نعرف مين صاحبه
-                const website = await Website.findOne({ domainName: domain });
-                if (website) {
-                    user = await User.findOne({ email, _id: website.userId, role: 'admin' });
-                }
-            }
-        } 
-        // الحالة 2: مفيش دومين (بيسجل من الصفحة العامة /Website/Login)
-        else {
-            // يبقى أكيد ده أدمن (صاحب موقع)
-            user = await User.findOne({ email, role: 'admin' });
+
+
+        // 1. البحث عن المستخدم (نبحث عن أدمن أولاً، لو مفيش نبحث عن عميل)
+
+        // الترتيب مهم: Admin أهم من Customer في الدخول من البوابة الرئيسية
+
+        let user = await User.findOne({ email, role: 'admin' });
+
+        
+
+        if (!user) {
+
+            // لو مش أدمن، نشوف هل هو عميل؟
+
+            // ملحوظة: لو الإيميل متكرر في كذا متجر، هيرجع أول واحد يقابله (لحل ده محتاجين المستخدم يحدد المتجر، بس حالياً هنمشيه كده)
+
+            user = await User.findOne({ email, role: 'customer' });
+
         }
 
-        if (!user) return res.status(400).json({ msg: 'البريد الإلكتروني غير مسجل أو غير مصرح له بالدخول من هنا' });
+
+
+        if (!user) return res.status(400).json({ msg: 'البريد الإلكتروني غير مسجل' });
+
+
+
+        // 2. التحقق من كلمة المرور
 
         const isMatch = await bcrypt.compare(password, user.password);
+
         if (!isMatch) return res.status(400).json({ msg: 'كلمة المرور غير صحيحة' });
 
+
+
+        // 3. إنشاء التوكن
+
         const token = jwt.sign(
+
             { id: user._id, role: user.role, domain: user.domain }, 
+
             JWT_SECRET, 
+
             { expiresIn: '1d' }
+
         );
 
+
+
+        // 4. الرد ببيانات المستخدم وتوجيهه
+
         res.json({ 
+
             token, 
+
             user: { 
+
                 id: user._id, 
+
                 email: user.email, 
+
                 name: user.full_name,
-                role: user.role,
-                domain: user.domain 
+
+                role: user.role,   // مهم جداً للفرونت
+
+                domain: user.domain // مهم للعميل عشان نعرف هو تبع مين
+
             } 
+
         });
 
-    } catch (err) { 
-        res.status(500).json({ error: err.message }); 
-    }
-});
 
+
+    } catch (err) { 
+
+        res.status(500).json({ error: err.message }); 
+
+    }
+
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
