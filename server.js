@@ -6,14 +6,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
-// const fs = require('fs'); // تم إيقافه لأنه يسبب مشاكل في Vercel
 
+// Models
 const User = require('./models/User');
 const Website = require('./models/Website');
 
 const app = express();
 
-// 1. إعدادات CORS
+// 1. CORS Configuration
 const allowedOrigins = [
   'http://localhost:5000', 
   "https://backend-website-pivot.vercel.app",
@@ -37,21 +37,19 @@ app.use(cors({
 
 app.use(express.json());
 
-// 2. إعدادات رفع الملفات (تم التعديل ليعمل على Vercel)
-// Vercel لا يدعم diskStorage، نستخدم memoryStorage مؤقتاً لتجنب الانهيار
+// 2. File Upload Config (Memory Storage for Vercel)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// 3. الاتصال بقاعدة البيانات
-// يفضل وضع الرابط في Environment Variables في إعدادات Vercel
-const URL="mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0";
-const MONGODB_URI = "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0";
+// 3. Database Connection
+const MONGODB_URI = "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0"; // يفضل نقله لـ .env
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
 mongoose.connect(MONGODB_URI)
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Error:', err));
 
+// Middleware
 const authMiddleware = (req, res, next) => {
     const token = req.header('Authorization');
     if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
@@ -64,59 +62,57 @@ const authMiddleware = (req, res, next) => {
 
 // --- ROUTES ---
 
-// 1. Register
+// ----------------------------------------------------
+// 1. Admin Auth (تسجيل أصحاب المواقع)
+// ----------------------------------------------------
+
+// Admin Register
 app.post('/api/register', async (req, res) => {
     try {
         const { full_name, phone, email, password } = req.body;
         
-        // التحقق من وجود المستخدم
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email, role: 'admin' }); // التأكد من عدم وجود أدمن بنفس الإيميل
         if (user) return res.status(400).json({ msg: 'المستخدم مسجل بالفعل' });
 
-        // تشفير كلمة المرور
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // إنشاء المستخدم
-        user = new User({ full_name, phone, email, password: hashedPassword });
+        user = new User({ 
+            full_name, 
+            phone, 
+            email, 
+            password: hashedPassword,
+            role: 'admin' // صريحاً دور الأدمن
+        });
         await user.save();
 
-        // إنشاء التوكن
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({ id: user._id, role: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
         
-        res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.full_name } });
+        res.status(201).json({ token, user: { id: user._id, email: user.email, name: user.full_name, role: 'admin' } });
     } catch (err) { 
         console.error("Register Error:", err);
         res.status(500).json({ error: err.message }); 
     }
 });
 
-// 2. Login
-app.post('/api/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ msg: 'البيانات غير صحيحة' });
+// Admin Login
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ msg: 'البيانات غير صحيحة' });
 
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user: { id: user._id, email: user.email } });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
+// ----------------------------------------------------
+// 2. Website Management (إدارة الموقع)
+// ----------------------------------------------------
 
-// 3. Create Website
-// ملاحظة هامة: الصور هنا لن يتم حفظها برابط دائم لأننا نستخدم memoryStorage
-// لحل هذا يجب ربط Cloudinary لاحقاً.
+// Create/Update Website
 app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFiles' }, { name: 'heroImageFiles' }]), async (req, res) => {
     try {
-        // بما أننا نستخدم memoryStorage، لا يوجد path، الملفات موجودة في الـ Buffer
-        // سنضع قيمة فارغة مؤقتاً حتى لا يحدث خطأ
+        // التحقق من أن المستخدم أدمن
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ msg: 'غير مصرح لك بإنشاء موقع' });
+        }
+
         const logoPath = req.files['logoFiles'] ? "temp_logo_url_placeholder" : null;
         const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : null;
 
-        // معالجة المصفوفات القادمة كنصوص
         let colorPalette = req.body.colorPalette;
         if (typeof colorPalette === 'string') {
             try { colorPalette = JSON.parse(colorPalette); } catch(e) { colorPalette = []; }
@@ -146,21 +142,24 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
                 title: req.body.heroTitle,
                 subtitle: req.body.heroSubtitle,
                 buttonText: req.body.heroButtonText,
-                backgroundImage: heroPath
             },
-            logo: logoPath,
             sections: sections
         };
 
-        // المنطق لتحديث البيانات
-        if (!logoPath) delete websiteData.logo;
-        if (!heroPath) delete websiteData.hero.backgroundImage;
+        if (logoPath) websiteData.logo = logoPath;
+        if (heroPath) websiteData.hero.backgroundImage = heroPath;
 
+        // 1. إنشاء أو تحديث الموقع
         const website = await Website.findOneAndUpdate(
             { userId: req.user.id },
             { $set: websiteData },
             { new: true, upsert: true } 
         );
+
+        // ✅ 2. تحديث اليوزر (الأدمن) وربطه بالموقع
+        await User.findByIdAndUpdate(req.user.id, { 
+            website: website._id 
+        });
 
         res.json({ msg: 'Website saved successfully', website });
 
@@ -170,7 +169,7 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
     }
 });
 
-// 4. Get My Website
+// Get My Website (لصاحب الموقع)
 app.get('/api/my_website', authMiddleware, async (req, res) => {
     try {
         const website = await Website.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
@@ -179,7 +178,7 @@ app.get('/api/my_website', authMiddleware, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. Public Website View
+// Public Website View (للزوار)
 app.get('/api/website/:domainName', async (req, res) => {
     try {
         const website = await Website.findOne({ domainName: req.params.domainName });
@@ -188,13 +187,101 @@ app.get('/api/website/:domainName', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ----------------------------------------------------
+// 3. Store Customer Auth (تسجيل عملاء المتاجر)
+// ----------------------------------------------------
+
+// Store Register
+app.post('/api/store/auth/register', async (req, res) => {
+    try {
+        const { full_name, email, password, phone, domain } = req.body;
+
+        if (!domain) return res.status(400).json({ msg: 'Domain is required' });
+
+        // التأكد من أن المتجر موجود
+        const website = await Website.findOne({ domainName: domain });
+        if (!website) return res.status(404).json({ msg: 'المتجر غير موجود' });
+
+        // التحقق هل العميل مسجل في هذا المتجر سابقاً؟
+        let user = await User.findOne({ email, domain, role: 'customer' });
+        if (user) return res.status(400).json({ msg: 'هذا البريد مسجل بالفعل في هذا المتجر' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = new User({
+            full_name,
+            email,
+            phone,
+            password: hashedPassword,
+            role: 'customer', // عميل
+            domain: domain    // تابع لهذا المتجر
+        });
+
+        await user.save();
+
+        const token = jwt.sign(
+            { id: user._id, role: 'customer', domain: domain }, 
+            JWT_SECRET, 
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({ 
+            token, 
+            user: { id: user._id, name: user.full_name, email: user.email, role: 'customer' } 
+        });
+
+    } catch (err) {
+        console.error("Store Register Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Store Login
+// Unified Login (Admin & Customer)
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // 1. البحث عن المستخدم (نبحث عن أدمن أولاً، لو مفيش نبحث عن عميل)
+        // الترتيب مهم: Admin أهم من Customer في الدخول من البوابة الرئيسية
+        let user = await User.findOne({ email, role: 'admin' });
+        
+        if (!user) {
+            // لو مش أدمن، نشوف هل هو عميل؟
+            // ملحوظة: لو الإيميل متكرر في كذا متجر، هيرجع أول واحد يقابله (لحل ده محتاجين المستخدم يحدد المتجر، بس حالياً هنمشيه كده)
+            user = await User.findOne({ email, role: 'customer' });
+        }
+
+        if (!user) return res.status(400).json({ msg: 'البريد الإلكتروني غير مسجل' });
+
+        // 2. التحقق من كلمة المرور
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ msg: 'كلمة المرور غير صحيحة' });
+
+        // 3. إنشاء التوكن
+        const token = jwt.sign(
+            { id: user._id, role: user.role, domain: user.domain }, 
+            JWT_SECRET, 
+            { expiresIn: '1d' }
+        );
+
+        // 4. الرد ببيانات المستخدم وتوجيهه
+        res.json({ 
+            token, 
+            user: { 
+                id: user._id, 
+                email: user.email, 
+                name: user.full_name,
+                role: user.role,   // مهم جداً للفرونت
+                domain: user.domain // مهم للعميل عشان نعرف هو تبع مين
+            } 
+        });
+
+    } catch (err) { 
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-
-
-
-
-
-
-
