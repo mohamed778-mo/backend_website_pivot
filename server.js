@@ -199,37 +199,44 @@ app.post('/api/store/auth/register', async (req, res) => {
 
         if (!domain) return res.status(400).json({ msg: 'Domain is required' });
 
-        // التأكد من أن المتجر موجود
+        // التأكد من وجود المتجر
         const website = await Website.findOne({ domainName: domain });
         if (!website) return res.status(404).json({ msg: 'المتجر غير موجود' });
 
-        // التحقق هل العميل مسجل في هذا المتجر سابقاً؟
-        let user = await User.findOne({ email, domain, role: 'customer' });
-        if (user) return res.status(400).json({ msg: 'هذا البريد مسجل بالفعل في هذا المتجر' });
+        // 1. هل هذا الإيميل مسجل *كعميل* في *نفس هذا المتجر*؟ (ممنوع التكرار هنا)
+        let existingCustomer = await User.findOne({ email, role: 'customer', domain });
+        if (existingCustomer) {
+            return res.status(400).json({ msg: 'هذا البريد مسجل بالفعل كعميل في هذا المتجر' });
+        }
 
+        // 2. هل هذا الإيميل هو "صاحب المتجر" نفسه؟ (اختياري: نمنعه أو نسمح له)
+        // الأفضل نسمح له عادي عشان يشتري من نفسه للتجربة (Test Order)
+        
+        // التشفير
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        user = new User({
+        // إنشاء حساب عميل جديد (حتى لو الإيميل موجود كأدمن لموقع تاني)
+        const newUser = new User({
             full_name,
             email,
             phone,
             password: hashedPassword,
-            role: 'customer', // عميل
-            domain: domain    // تابع لهذا المتجر
+            role: 'customer',
+            domain: domain // ربطه بالمتجر الحالي
         });
 
-        await user.save();
+        await newUser.save();
 
         const token = jwt.sign(
-            { id: user._id, role: 'customer', domain: domain }, 
+            { id: newUser._id, role: 'customer', domain }, 
             JWT_SECRET, 
             { expiresIn: '7d' }
         );
 
         res.status(201).json({ 
             token, 
-            user: { id: user._id, name: user.full_name, email: user.email, role: 'customer' } 
+            user: { id: newUser._id, name: newUser.full_name, email: newUser.email, role: 'customer' } 
         });
 
     } catch (err) {
@@ -239,33 +246,49 @@ app.post('/api/store/auth/register', async (req, res) => {
 });
 
 // Store Login
-// Unified Login (Admin & Customer)
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password, domainName } = req.body;
 
         let user;
 
-        // الحالة 1: لو في دومين مبعوت (يعني المستخدم بيسجل من صفحة متجر محدد)
+        // السيناريو 1: الدخول من صفحة متجر محدد (مثلاً: /Website/MyStore/Login)
         if (domainName) {
-            // الأول ندور هل هو عميل في المتجر ده؟
-            user = await User.findOne({ email, role: 'customer', domain:domainName });
-            
-            // لو مش عميل، يمكن يكون الأدمن صاحب المتجر بيحاول يدخل من صفحة المتجر
+            // أ. هل أنت عميل مسجل في هذا المتجر؟ (الأولوية للعميل هنا)
+            user = await User.findOne({ email, role: 'customer', domain: domainName });
+
+            // ب. لو مش عميل، هل أنت "صاحب هذا المتجر"؟ (عشان الأدمن يقدر يدخل متجره)
             if (!user) {
-                const website = await Website.findOne({ domainName: domainName });
+                const website = await Website.findOne({ domainName });
                 if (website) {
-                    user = await User.findOne({ email, _id: website.userId, role: 'admin' });
+                    // ابحث عن أدمن يملك هذا الموقع تحديداً
+                    user = await User.findOne({ email, role: 'admin', website: website._id });
                 }
             }
+            
+            // ملحوظة: لو هو أدمن لموقع "تاني"، الكود ده مش هيجيبه، وده المطلوب!
+            // عشان لازم يسجل كعميل جديد في المتجر ده حتى لو بنفس الإيميل.
         } 
-       
+        
+        // السيناريو 2: الدخول من الصفحة الرئيسية للمنصة (/Website/Login)
+        else {
+            // هنا بنبحث عن أي أدمن (صاحب موقع)
+            user = await User.findOne({ email, role: 'admin' });
+        }
 
-        if (!user) return res.status(400).json({ msg: ' البريد الإلكتروني او كلمة المرور غير صحيحة ' });
+        if (!user) {
+            // رسالة توضيحية حسب الحالة
+            const msg = domainName 
+                ? 'البريد غير مسجل في هذا المتجر (إذا كنت تملك حساباً في متجر آخر، يرجى إنشاء حساب جديد هنا)' 
+                : 'البيانات غير صحيحة';
+            return res.status(400).json({ msg });
+        }
 
+        // التحقق من الباسورد
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ msg: ' البريد الإلكتروني او كلمة المرور غير صحيحة ' });
+        if (!isMatch) return res.status(400).json({ msg: 'كلمة المرور غير صحيحة' });
 
+        // إنشاء التوكن
         const token = jwt.sign(
             { id: user._id, role: user.role, domain: user.domain }, 
             JWT_SECRET, 
@@ -277,7 +300,7 @@ app.post('/api/login', async (req, res) => {
             user: { 
                 id: user._id, 
                 email: user.email, 
-                name: user.full_name,
+                name: user.full_name, 
                 role: user.role,
                 domain: user.domain 
             } 
@@ -288,8 +311,15 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ error: err.message }); 
     }
 });
+
+
+
+
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
 
 
