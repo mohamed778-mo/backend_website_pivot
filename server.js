@@ -247,7 +247,7 @@ app.post('/api/login', async (req, res) => {
         let user;
 
         // الحالة 1: لو في دومين مبعوت (يعني المستخدم بيسجل من صفحة متجر محدد)
-        if (domain) {
+        if (domainName) {
             // الأول ندور هل هو عميل في المتجر ده؟
             user = await User.findOne({ email, role: 'customer', domain:domainName });
             
@@ -290,6 +290,7 @@ app.post('/api/login', async (req, res) => {
 });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
 
 
