@@ -65,15 +65,17 @@ app.post('/api/admin/seed_themes', async (req, res) => {
                     title: 'أثاث راقي… يصنع الفرق في كل زاوية.',
                     subtitle: "تصميمات حديثة، ألوان هادئة، وجودة تعيش سنين—حوّل كل غرفة لفرصة جديدة للراحة والجمال.",
                     buttonText: "تسوق الأن",
-                    backgroundImage: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1600&q=80"
+                    backgroundImage: "https://i.ibb.co/3yfWSKSS/houses.png"
                 },
                 colors: {
                     primary: "#000000",
                     secondary: "#535929",
-                    text: "#535929",
+                    text: "#c1ffe4",
                     background: "white"
                 },
-                defaultSections: ['hero', 'products', 'about', 'footer']
+                defaultSections: ['hero', 'products', 'about', 'footer'],
+              client_o_img:"",
+              contactus_img:""
             },
             {
                 theme_id: 'tpl_tech_03',
@@ -83,15 +85,17 @@ app.post('/api/admin/seed_themes', async (req, res) => {
                     title: 'طلباتك كلها هتوصل لباب بيتك … أسرع وأوفر',
                     subtitle: "أكتر من 5000 منتج متوفرين جاهزين للطلب اختار اللي تحتاجه وهيوصل لحد باب بيتك بسرعة وجودة مضمونة.",
                     buttonText: "تسوق الأن",
-                    backgroundImage: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600&q=80"
+                    backgroundImage: "https://i.ibb.co/LDZ4HL4G/market.png"
                 },
                 colors: {
                     primary: "#2e0d76",
                     secondary: "#001ec0",
-                    text: "#000000",
+                    text: "#001ec0",
                     background: "white"
                 },
-                defaultSections: ['hero', 'categories', 'offers', 'footer']
+                defaultSections: ['hero', 'categories', 'offers', 'footer'],
+               client_o_img:"",
+              contactus_img:""
             },
             {
                 theme_id: 'tpl_fashion_02',
@@ -101,15 +105,17 @@ app.post('/api/admin/seed_themes', async (req, res) => {
                     title: 'موضة بتكمّل شخصيتك.',
                     subtitle: "مصممة بعناية لتناسب كل تفاصيل يومك إطلالات مرنة تلائمك في جميع المناسبات.",
                     buttonText: "تسوق الأن",
-                    backgroundImage: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80"
+                    backgroundImage: "https://ibb.co/cKfHKQrn"
                 },
                 colors: {
                     primary: "#6dcaff",
                     secondary: "#000000",
-                    text: "#000000",
+                    text: "#6dcaff",
                     background: "white"
                 },
-                defaultSections: ['hero', 'new-arrivals', 'trending', 'footer']
+                defaultSections: ['hero', 'new-arrivals', 'trending', 'footer'],
+               client_o_img:"",
+              contactus_img:""
             },
             {
                 theme_id: 'tpl_agency_04',
@@ -119,15 +125,17 @@ app.post('/api/admin/seed_themes', async (req, res) => {
                     title: 'مستقبل السيارات… بين يديك.',
                     subtitle: "استكشف أحدث السيارات الكهربائية والتقنيات الذكية داخل معرض مصمم بعناية ليعرض لك الجيل الجديد من القيادة.",
                     buttonText: "تسوق الأن",
-                    backgroundImage: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1600&q=80"
+                    backgroundImage: "https://i.ibb.co/d4H2hNC3/cars.png"
                 },
                 colors: {
-                    primary: "#000000",
-                    secondary: "#480181",
-                    text: "#000000",
+                    primary: "#72A1FF",
+                    secondary: "#33025e",
+                    text: "#72A1FF",
                     background: "white"
                 },
-                defaultSections: ['hero', 'featured-cars', 'services', 'footer']
+                defaultSections: ['hero', 'featured-cars', 'services', 'footer'],
+               client_o_img:"",
+              contactus_img:""
             },
             {
                 theme_id: 'tpl_agency_05',
@@ -137,15 +145,17 @@ app.post('/api/admin/seed_themes', async (req, res) => {
                     title: 'تكنولوجيا المستقبل… تحت إيدك دلوقتى.',
                     subtitle: "اختار من أحدث الأجهزة اللي بتتعلم منك مع الوقت، وتطوّر أدائها حسب استخدامك، وتقدم لك تجربة أسرع وأقوى من أي جهاز تقليدي.",
                     buttonText: "تسوق الأن",
-                    backgroundImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&q=80"
+                    backgroundImage: "https://i.ibb.co/nVkPCKT/image.png"
                 },
                 colors: {
                     primary: "#1e2a60",
                     secondary: "#3e4ea3",
-                    text: "#000000",
+                    text: "#3E4EA3",
                     background: "white"
                 },
-                defaultSections: ['hero', 'products', 'specs', 'footer']
+                defaultSections: ['hero', 'products', 'specs', 'footer'],
+               client_o_img:"",
+              contactus_img:""
             }
         ];
 
@@ -177,10 +187,31 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
             selectedSections: userSections 
         } = req.body;
 
-        const theme = await Theme.findOne({ theme_id: templateId });
-        if (!theme) return res.status(404).json({ msg: 'Theme not found' });
+        // 1. تحديد المصدر الأساسي للبيانات (إما الثيم من الداتا بيز أو قيم افتراضية)
+        let baseTheme = null;
 
-        let finalColors = theme.colors;
+        if (templateId) {
+            // لو باعت ID، نجيب الثيم
+            baseTheme = await Theme.findOne({ theme_id: templateId });
+            if (!baseTheme) return res.status(404).json({ msg: 'Theme not found' });
+        } else {
+            // لو مش باعت ID، نستخدم قيم افتراضية (Generic Defaults)
+            baseTheme = {
+                colors: { primary: '#000000', secondary: '#555555', text: '#000000', background: '#ffffff' },
+                hero: { 
+                    title: 'مرحباً بك في موقعنا الجديد', 
+                    subtitle: '', 
+                    buttonText: 'تواصل معنا', 
+                    backgroundImage: null 
+                },
+                defaultSections: ['hero', 'footer'], // أقل عدد سكاشن مقبول
+                client_o_img: "",
+                contactus_img: ""
+            };
+        }
+
+        // 2. معالجة الألوان (دمج اختيار المستخدم مع المصدر الأساسي)
+        let finalColors = baseTheme.colors;
         if (userColors) {
              let parsedColors = userColors;
              if (typeof userColors === 'string') {
@@ -196,6 +227,7 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
              }
         }
 
+        // 3. معالجة السكاشن
         let finalSections = [];
         let parsedUserSections = userSections;
         if(typeof userSections === 'string') {
@@ -209,19 +241,23 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
                 order: index
             }));
         } else {
-            finalSections = theme.defaultSections.map((sectionId, index) => ({
+            // لو مفيش سكاشن من اليوزر، خد سكاشن الثيم أو الافتراضية
+            finalSections = baseTheme.defaultSections.map((sectionId, index) => ({
                 id: sectionId,
                 enabled: true,
                 order: index
             }));
         }
 
+        // 4. معالجة الصور
         const logoPath = req.files['logoFiles'] ? "temp_logo_url_placeholder" : null;
-        const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : theme.hero.backgroundImage;
+        // لو اليوزر رفع صورة خدها، لو لا خد صورة الثيم، لو مفيش ثيم خد null
+        const heroPath = req.files['heroImageFiles'] ? "temp_hero_url_placeholder" : baseTheme.hero.backgroundImage;
 
+        // 5. تجهيز البيانات للحفظ
         const websiteData = {
             userId: req.user.id,
-            theme_id: templateId,
+            theme_id: templateId || "custom", // لو مفيش ثيم بنسميه custom
             siteName: siteName || "موقعي الجديد",
             domainName: domainName,
             email: email,
@@ -230,13 +266,15 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
             logo: logoPath,
 
             hero: {
-                title: heroTitle || theme.hero.title,
-                subtitle: heroSubtitle || theme.hero.subtitle,
-                buttonText: heroButtonText || theme.hero.buttonText,
+                title: heroTitle || baseTheme.hero.title,
+                subtitle: heroSubtitle || baseTheme.hero.subtitle,
+                buttonText: heroButtonText || baseTheme.hero.buttonText,
                 backgroundImage: heroPath
             },
             
-            sections: finalSections
+            sections: finalSections,
+            client_o_img: baseTheme.client_o_img || "",
+            contactus_img: baseTheme.contactus_img || "",
         };
 
         const website = await Website.findOneAndUpdate(
@@ -257,6 +295,7 @@ app.post('/api/create_website', authMiddleware, upload.fields([{ name: 'logoFile
         res.status(500).json({ error: err.message });
     }
 });
+
 
 app.post('/api/register', async (req, res) => {
     try {
@@ -339,3 +378,4 @@ app.post('/api/login', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
