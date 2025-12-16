@@ -49,9 +49,13 @@ const WebsiteSchema = new mongoose.Schema({
     twitter: String,
     instagram: String,
     linkedin: String
-  }
+  },
 
+   contactus_img:{type: String},
+  client_o_img:{type: String},
+  
 }, { timestamps: true });
 
 
 module.exports = mongoose.model('Website', WebsiteSchema);
+
