@@ -19,7 +19,11 @@ const ThemeSchema = new mongoose.Schema({
     backgroundImage: String
   },
 
-  defaultSections: [{ type: String }] 
+  defaultSections: [{ type: String }] ,
+
+  contactus_img:{type: String},
+  client_o_img:{type: String},
+  
 
 }, { timestamps: true });
 
