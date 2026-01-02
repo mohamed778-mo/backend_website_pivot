@@ -40,7 +40,7 @@ const upload = multer({ storage });
 const MONGODB_URI = "mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0"; 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey123';
 
-mongoose.connect(MONGODB_URI)
+mongoose.connect('mongodb+srv://muhammadelmalla13_db_user:B87NEeWtCUiXuGXI@cluster0.ait0scw.mongodb.net/?appName=Cluster0')
     .then(() => console.log('✅ MongoDB Connected'))
     .catch(err => console.log('❌ DB Error:', err));
 
@@ -378,4 +378,5 @@ app.post('/api/login', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 
